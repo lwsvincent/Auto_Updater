@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+    <version>1.0.0.0</version>
+    <url>https://github.com/YOUR_USERNAME/Auto_Updater/releases/download/v1.0.0/Auto_Updater-Setup.exe</url>
+    <changelog>https://github.com/YOUR_USERNAME/Auto_Updater/releases/tag/v1.0.0</changelog>
+    <mandatory>false</mandatory>
+    <checksum algorithm="SHA256">PUT_CHECKSUM_HERE</checksum>
+</item>
