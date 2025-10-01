@@ -15,10 +15,12 @@
                        HorizontalAlignment="Center"/>
 
             <TextBlock x:Name="VersionText"
-                       Text="Version: 1.0.0"
+                       Text="Version: 1.0.1 (NEW!)"
                        FontSize="16"
                        Margin="0,0,0,10"
-                       HorizontalAlignment="Center"/>
+                       HorizontalAlignment="Center"
+                       Foreground="Green"
+                       FontWeight="Bold"/>
 
             <TextBlock x:Name="StatusText"
                        Text="Status: Ready"
