@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <item>
-    <version>1.0.1.0</version>
-    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/v1.0.1/Auto_Updater-Setup-v1.0.1.exe</url>
-    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/v1.0.1</changelog>
+    <version>1.0.2.0</version>
+    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/v1.0.2/Auto_Updater-v1.0.2.zip</url>
+    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/v1.0.2</changelog>
     <mandatory>false</mandatory>
-    <checksum algorithm="SHA256">9E5851FC6C79CFA5EEC465B2B8611A911F9B808DAB09CDED3A8D698C647CC2D6</checksum>
+    <checksum algorithm="SHA256">E22EFA004AD82548A455AE574BC47642B0DBDCC5FFE3312E843522EFA6E7F951</checksum>
 </item>

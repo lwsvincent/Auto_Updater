@@ -1,0 +1,58 @@
+<Window x:Class="Launcher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Launcher"
+        mc:Ignorable="d"
+        Title="Application Launcher" Height="250" Width="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Background="#F0F0F0">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20">
+            <Image x:Name="LoadingIcon"
+                   Width="48"
+                   Height="48"
+                   Margin="0,0,0,20"
+                   RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <RotateTransform x:Name="LoadingRotation" Angle="0"/>
+                </Image.RenderTransform>
+                <Image.Source>
+                    <DrawingImage>
+                        <DrawingImage.Drawing>
+                            <GeometryDrawing Brush="#2196F3">
+                                <GeometryDrawing.Geometry>
+                                    <EllipseGeometry Center="24,24" RadiusX="20" RadiusY="20"/>
+                                </GeometryDrawing.Geometry>
+                            </GeometryDrawing>
+                        </DrawingImage.Drawing>
+                    </DrawingImage>
+                </Image.Source>
+            </Image>
+
+            <TextBlock x:Name="StatusText"
+                       Text="Initializing..."
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,10"/>
+
+            <TextBlock x:Name="DetailText"
+                       Text="Please wait..."
+                       FontSize="12"
+                       Foreground="#666666"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       MaxWidth="380"/>
+
+            <ProgressBar x:Name="UpdateProgress"
+                         Width="350"
+                         Height="8"
+                         Margin="0,20,0,0"
+                         Visibility="Collapsed"
+                         Foreground="#2196F3"/>
+        </StackPanel>
+    </Grid>
+</Window>
