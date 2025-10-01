@@ -9,7 +9,7 @@ namespace Auto_Updater;
 public partial class MainWindow : Window
 {
     // Update XML URL - Replace this with your GitHub release XML URL
-    private const string UpdateUrl = "https://raw.githubusercontent.com/YOUR_USERNAME/Auto_Updater/main/update.xml";
+    private const string UpdateUrl = "https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/update.xml";
 
     public MainWindow()
     {
