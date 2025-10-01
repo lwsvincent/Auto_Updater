@@ -69,6 +69,10 @@ public partial class MainWindow : Window
             }
 
             var parser = new FileIniDataParser();
+            // Configure parser to handle comments with # and ;
+            parser.Parser.Configuration.CommentString = "#";
+            parser.Parser.Configuration.AllowCreateSectionsOnFly = true;
+
             config = parser.ReadFile(configPath);
 
             updateUrl = config["Updater"]["UpdateUrl"];
