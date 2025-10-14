@@ -1,0 +1,55 @@
+<Window x:Class="MainApp3.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Color Palette App - v1.0.0" Height="550" Width="600"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#00BCD4" Padding="15">
+            <TextBlock Text="Color Palette Generator"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <Button Content="Generate Random Colors"
+                        Click="GenerateColors_Click"
+                        Padding="15,10"
+                        FontSize="16"
+                        Background="#FF4081"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"/>
+            </StackPanel>
+
+            <UniformGrid Grid.Row="1" x:Name="colorGrid" Columns="3" Rows="3"/>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Background="#0097A7"
+                Padding="15">
+            <StackPanel>
+                <TextBlock Text="MainApp3 - Color Palette" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                <TextBlock Text="Version: 1.0.0" FontSize="12" Foreground="#B2EBF2"/>
+                <TextBlock Text="Click on any color to copy its hex code."
+                          FontSize="11"
+                          Foreground="#B2EBF2"
+                          Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

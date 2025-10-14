@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -13,9 +14,15 @@ public partial class MainWindow : Window
 {
     private readonly string configPath = "config.ini";
     private IniData? config;
-    private string? updateUrl;
+
+    // Configuration values
+    private string? launcherUpdateUrl;
+    private string? appUpdateUrl;
     private string? mainAppPath;
-    private bool autoCheckUpdate;
+    private bool autoCheckLauncherUpdate;
+    private bool autoCheckAppUpdate;
+    private bool launcherUpdateChecked = false;
+    private bool appUpdateChecked = false;
 
     public MainWindow()
     {
@@ -26,8 +33,7 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         StartLoadingAnimation();
-
-        await Task.Delay(500); // Brief delay for UI to show
+        await Task.Delay(500);
 
         try
         {
@@ -38,18 +44,17 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (autoCheckUpdate)
+            // STEP 1: Check for launcher updates first
+            if (autoCheckLauncherUpdate)
             {
-                UpdateStatus("Checking for updates...", "Connecting to update server");
+                UpdateStatus("Checking launcher updates...", "Checking for updater updates");
                 await Task.Delay(500);
-
-                CheckForUpdates();
+                CheckLauncherUpdate();
             }
             else
             {
-                UpdateStatus("Skipping update check...", "Auto-update is disabled");
-                await Task.Delay(1000);
-                LaunchMainApp();
+                launcherUpdateChecked = true;
+                ProceedToAppUpdate();
             }
         }
         catch (Exception ex)
@@ -64,22 +69,22 @@ public partial class MainWindow : Window
         {
             if (!File.Exists(configPath))
             {
-                // Create default config if it doesn't exist
                 CreateDefaultConfig();
             }
 
             var parser = new FileIniDataParser();
-            // Configure parser to handle comments with # and ;
             parser.Parser.Configuration.CommentString = "#";
             parser.Parser.Configuration.AllowCreateSectionsOnFly = true;
 
             config = parser.ReadFile(configPath);
 
-            updateUrl = config["Updater"]["UpdateUrl"];
+            launcherUpdateUrl = config["Updater"]["LauncherUpdateUrl"];
+            appUpdateUrl = config["Updater"]["AppUpdateUrl"];
             mainAppPath = config["Updater"]["MainAppPath"];
-            autoCheckUpdate = bool.Parse(config["Updater"]["AutoCheckUpdate"] ?? "true");
+            autoCheckLauncherUpdate = bool.Parse(config["Updater"]["AutoCheckLauncherUpdate"] ?? "true");
+            autoCheckAppUpdate = bool.Parse(config["Updater"]["AutoCheckAppUpdate"] ?? "true");
 
-            return !string.IsNullOrWhiteSpace(updateUrl) && !string.IsNullOrWhiteSpace(mainAppPath);
+            return !string.IsNullOrWhiteSpace(mainAppPath);
         }
         catch (Exception ex)
         {
@@ -92,86 +97,171 @@ public partial class MainWindow : Window
     private void CreateDefaultConfig()
     {
         var defaultConfig = @"[Updater]
-UpdateUrl=https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/update.xml
+LauncherUpdateUrl=https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/launcher-update.xml
+AppUpdateUrl=https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/app-update.xml
 MainAppPath=MainApp\MainApp.exe
-AutoCheckUpdate=true
+AutoCheckLauncherUpdate=true
+AutoCheckAppUpdate=true
 ShowUpdateUI=true
-MandatoryUpdate=false
+MandatoryLauncherUpdate=false
+MandatoryAppUpdate=false
 
 [Application]
 AppName=Auto Updater Demo
-Version=1.0.2";
+AppVersion=1.0.2
+LauncherVersion=1.0.2";
 
         File.WriteAllText(configPath, defaultConfig);
     }
 
-    private void CheckForUpdates()
+    private void CheckLauncherUpdate()
     {
         try
         {
-            // Configure AutoUpdater
-            AutoUpdater.ShowSkipButton = false;
-            AutoUpdater.ShowRemindLaterButton = true;
-            AutoUpdater.Mandatory = config?["Updater"]["MandatoryUpdate"] == "true";
-            AutoUpdater.ReportErrors = true;
+            // Unsubscribe previous events
+            AutoUpdater.CheckForUpdateEvent -= LauncherUpdate_CheckForUpdateEvent;
+            AutoUpdater.ApplicationExitEvent -= LauncherUpdate_ApplicationExitEvent;
 
-            // Subscribe to update check completed event
-            AutoUpdater.CheckForUpdateEvent += AutoUpdater_CheckForUpdateEvent;
+            // Subscribe to launcher update events
+            AutoUpdater.CheckForUpdateEvent += LauncherUpdate_CheckForUpdateEvent;
+            AutoUpdater.ApplicationExitEvent += LauncherUpdate_ApplicationExitEvent;
 
-            // Subscribe to application exit event (after update download)
-            AutoUpdater.ApplicationExitEvent += AutoUpdater_ApplicationExitEvent;
+            // Configure AutoUpdater for launcher
+            AutoUpdater.ShowSkipButton = true;
+            AutoUpdater.ShowRemindLaterButton = false;
+            AutoUpdater.Mandatory = config?["Updater"]["MandatoryLauncherUpdate"] == "true";
+            AutoUpdater.ReportErrors = false; // Don't show errors for launcher update
 
-            // Start update check
-            AutoUpdater.Start(updateUrl);
+            // Get current launcher version
+            AutoUpdater.InstalledVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            AutoUpdater.AppTitle = "Launcher Update";
+
+            // Start launcher update check
+            AutoUpdater.Start(launcherUpdateUrl);
         }
         catch (Exception ex)
         {
-            UpdateStatus("Update check failed", ex.Message);
-            Task.Delay(2000).ContinueWith(_ => Dispatcher.Invoke(LaunchMainApp));
+            UpdateStatus("Launcher update check failed", ex.Message);
+            launcherUpdateChecked = true;
+            ProceedToAppUpdate();
         }
     }
 
-    private void AutoUpdater_CheckForUpdateEvent(UpdateInfoEventArgs? args)
+    private void LauncherUpdate_CheckForUpdateEvent(UpdateInfoEventArgs? args)
+    {
+        if (args == null || args.Error != null || !args.IsUpdateAvailable)
+        {
+            // No launcher update available, proceed to app update
+            launcherUpdateChecked = true;
+            Dispatcher.Invoke(ProceedToAppUpdate);
+            return;
+        }
+
+        UpdateStatus("Launcher update available!", $"New launcher version {args.CurrentVersion} is available");
+        // AutoUpdater will show dialog
+        // If user installs, ApplicationExitEvent will be called
+        // If user skips, we'll proceed to app update
+    }
+
+    private void LauncherUpdate_ApplicationExitEvent()
+    {
+        // Launcher is updating itself - the app will close and restart
+        Dispatcher.Invoke(() =>
+        {
+            UpdateStatus("Updating launcher...", "Launcher will restart after update");
+        });
+    }
+
+    private void ProceedToAppUpdate()
+    {
+        if (!launcherUpdateChecked)
+            return;
+
+        // STEP 2: Check for MainApp updates
+        if (autoCheckAppUpdate)
+        {
+            UpdateStatus("Checking app updates...", "Checking for application updates");
+            Task.Delay(500).ContinueWith(_ => Dispatcher.Invoke(CheckAppUpdate));
+        }
+        else
+        {
+            appUpdateChecked = true;
+            LaunchMainApp();
+        }
+    }
+
+    private void CheckAppUpdate()
+    {
+        try
+        {
+            // Unsubscribe previous events
+            AutoUpdater.CheckForUpdateEvent -= LauncherUpdate_CheckForUpdateEvent;
+            AutoUpdater.ApplicationExitEvent -= LauncherUpdate_ApplicationExitEvent;
+            AutoUpdater.CheckForUpdateEvent -= AppUpdate_CheckForUpdateEvent;
+
+            // Subscribe to app update events
+            AutoUpdater.CheckForUpdateEvent += AppUpdate_CheckForUpdateEvent;
+
+            // Configure AutoUpdater for app
+            AutoUpdater.ShowSkipButton = true;
+            AutoUpdater.ShowRemindLaterButton = true;
+            AutoUpdater.Mandatory = config?["Updater"]["MandatoryAppUpdate"] == "true";
+            AutoUpdater.ReportErrors = true;
+            AutoUpdater.AppTitle = "Application Update";
+
+            // Reset installed version (app version might be different from launcher)
+            AutoUpdater.InstalledVersion = null;
+
+            // Start app update check
+            AutoUpdater.Start(appUpdateUrl);
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus("App update check failed", ex.Message);
+            appUpdateChecked = true;
+            LaunchMainApp();
+        }
+    }
+
+    private void AppUpdate_CheckForUpdateEvent(UpdateInfoEventArgs? args)
     {
         if (args == null)
         {
-            UpdateStatus("Update check failed", "No update information available");
-            Task.Delay(2000).ContinueWith(_ => Dispatcher.Invoke(LaunchMainApp));
+            appUpdateChecked = true;
+            Dispatcher.Invoke(LaunchMainApp);
             return;
         }
 
         if (args.Error != null)
         {
-            UpdateStatus("Update check failed", args.Error.Message);
+            UpdateStatus("App update check failed", args.Error.Message);
+            appUpdateChecked = true;
             Task.Delay(2000).ContinueWith(_ => Dispatcher.Invoke(LaunchMainApp));
             return;
         }
 
         if (args.IsUpdateAvailable)
         {
-            UpdateStatus("Update available!", $"Version {args.CurrentVersion} is available");
-            // AutoUpdater will show its own dialog
-            // If user skips or closes, we launch the main app
+            UpdateStatus("App update available!", $"Version {args.CurrentVersion} is available");
+            // AutoUpdater will show dialog
+            // User can skip or update
+            // After dialog closes (skip/update/error), we launch the app
+            appUpdateChecked = true;
+            Task.Delay(1000).ContinueWith(_ => Dispatcher.Invoke(LaunchMainApp));
         }
         else
         {
-            UpdateStatus("No updates available", "Application is up to date");
+            UpdateStatus("App is up to date", "No updates available");
+            appUpdateChecked = true;
             Task.Delay(1500).ContinueWith(_ => Dispatcher.Invoke(LaunchMainApp));
         }
     }
 
-    private void AutoUpdater_ApplicationExitEvent()
-    {
-        // This is called when the update is downloaded and ready to install
-        // The application will close and the installer will run
-        Dispatcher.Invoke(() =>
-        {
-            UpdateStatus("Installing update...", "Application will restart after installation");
-        });
-    }
-
     private void LaunchMainApp()
     {
+        if (!appUpdateChecked)
+            return;
+
         try
         {
             if (string.IsNullOrWhiteSpace(mainAppPath))

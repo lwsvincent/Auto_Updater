@@ -1,520 +1,659 @@
-# Update Step-by-Step Guide
+# Update Step-by-Step Guide (NEW: Separate Update Channels)
 
-This guide explains how to release new versions of the auto-updater system.
+This guide explains how to release new versions with **independent update channels** for Launcher and MainApp.
 
 ---
 
 ## 📋 Table of Contents
 
-1. [Release New Version of MainApp](#1-release-new-version-of-mainapp)
-2. [Release New Version of Updater (Launcher)](#2-release-new-version-of-updater-launcher)
-3. [Release Both Together](#3-release-both-together)
-4. [Quick Reference Commands](#4-quick-reference-commands)
+1. [Understanding the New System](#1-understanding-the-new-system)
+2. [Release New Version of Launcher Only](#2-release-new-version-of-launcher-only)
+3. [Release New Version of MainApp Only](#3-release-new-version-of-mainapp-only)
+4. [Release Both Together](#4-release-both-together)
+5. [Use Launcher with Your Own App](#5-use-launcher-with-your-own-app)
+6. [Quick Reference Commands](#6-quick-reference-commands)
 
 ---
 
-## 1. Release New Version of MainApp
+## 1. Understanding the New System
 
-This is the most common scenario - updating your main application while keeping the launcher the same.
+### 🎯 Key Concepts
 
-### Step 1.1: Update MainApp Code
+**OLD System (v1.0.0-1.0.2):**
+- Single `update.xml` for everything
+- Update anything → Download entire package
+- Not reusable for other projects
 
-Edit your application in `MainApp/MainWindow.xaml` and `MainApp/MainWindow.xaml.cs`:
+**NEW System (v1.0.3+):**
+- `launcher-update.xml` → Updates Launcher only
+- `app-update.xml` → Updates MainApp only
+- Can update each independently
+- **Launcher is reusable for any project!**
 
-```csharp
-// Example: Change the UI
-<TextBlock Text="Version 1.0.3"  // Update version text
-           FontSize="20"
-           Foreground="Blue"      // Change color
-           .../>
+### 📁 File Structure
+
+```
+GitHub Repository:
+├── launcher-update.xml    # Launcher version info
+├── app-update.xml         # MainApp version info
+└── config.ini             # Configuration
+
+GitHub Releases:
+├── launcher-vX.X.X/       # Launcher-only releases
+│   └── Launcher-vX.X.X.zip
+│       └── Launcher.exe + dependencies
+│
+└── app-vX.X.X/            # MainApp-only releases
+    └── MainApp-vX.X.X.zip
+        └── MainApp/ folder
 ```
 
-### Step 1.2: Update Version Number
+### 🔄 Update Flow
 
-Edit `MainApp/MainApp.csproj`:
-
-```xml
-<PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
-    ...
-    <Version>1.0.3.0</Version>              <!-- Change this -->
-    <AssemblyVersion>1.0.3.0</AssemblyVersion>  <!-- Change this -->
-    <FileVersion>1.0.3.0</FileVersion>      <!-- Change this -->
-</PropertyGroup>
 ```
-
-### Step 1.3: Update Title (Optional)
-
-Edit `MainApp/MainWindow.xaml`:
-
-```xml
-<Window ...
-        Title="Main Application - v1.0.3"  <!-- Update title -->
-        ...>
+User runs Launcher.exe
+    ↓
+1. Check launcher-update.xml
+    ↓ (if update available)
+   Download Launcher ZIP → Extract → Restart
+    ↓
+2. Check app-update.xml
+    ↓ (if update available)
+   Download MainApp ZIP → Extract
+    ↓
+3. Launch MainApp
 ```
-
-### Step 1.4: Build Both Projects
-
-```bash
-# Build Launcher (no changes, but needed for complete package)
-cd Launcher
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v1.0.3
-
-# Build MainApp (your new version)
-cd ../MainApp
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v1.0.3/MainApp
-```
-
-### Step 1.5: Copy Configuration
-
-```bash
-# Copy config.ini to release folder
-cp ../config.ini ../releases/v1.0.3/
-```
-
-### Step 1.6: Create ZIP Package
-
-```powershell
-# PowerShell
-Compress-Archive -Path 'releases\v1.0.3\*' -DestinationPath 'releases\Auto_Updater-v1.0.3.zip' -Force
-```
-
-Or using Bash:
-```bash
-cd releases
-zip -r Auto_Updater-v1.0.3.zip v1.0.3/*
-```
-
-### Step 1.7: Calculate Checksum
-
-```powershell
-# PowerShell
-Get-FileHash 'releases\Auto_Updater-v1.0.3.zip' -Algorithm SHA256
-```
-
-**Copy the hash value** (e.g., `ABC123...`)
-
-### Step 1.8: Update update.xml
-
-Edit `update.xml`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<item>
-    <version>1.0.3.0</version>  <!-- New version -->
-    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/v1.0.3/Auto_Updater-v1.0.3.zip</url>
-    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/v1.0.3</changelog>
-    <mandatory>false</mandatory>
-    <checksum algorithm="SHA256">PASTE_YOUR_HASH_HERE</checksum>  <!-- Paste hash from Step 1.7 -->
-</item>
-```
-
-### Step 1.9: Create GitHub Release
-
-```bash
-# Commit changes first
-git add -A
-git commit -m "Release v1.0.3 - Updated MainApp with new features"
-git push
-
-# Create GitHub release
-gh release create v1.0.3 \
-  "releases/Auto_Updater-v1.0.3.zip" \
-  --title "v1.0.3 - MainApp Update" \
-  --notes "## Changes
-- Updated MainApp UI
-- Added new features
-- Bug fixes
-
-### Installation
-Download Auto_Updater-v1.0.3.zip and extract."
-```
-
-### Step 1.10: Push update.xml Changes
-
-```bash
-# Commit and push update.xml (this triggers the update for users)
-git add update.xml
-git commit -m "Update manifest to v1.0.3"
-git push
-```
-
-✅ **Done!** Users running v1.0.2 will now see an update notification when they run Launcher.exe.
 
 ---
 
-## 2. Release New Version of Updater (Launcher)
+## 2. Release New Version of Launcher Only
 
-This is less common - only when you need to update the launcher itself.
+**When:** You fixed a bug in Launcher or added new features to the updater itself.
 
-### Step 2.1: Update Launcher Code
-
-Edit `Launcher/MainWindow.xaml` or `Launcher/MainWindow.xaml.cs`:
-
-```csharp
-// Example: Change loading message
-UpdateStatus("Checking for updates...", "Connecting to update server v2");
-```
-
-### Step 2.2: Update Version in Launcher Project
+### Step 2.1: Update Launcher Version
 
 Edit `Launcher/Launcher.csproj`:
 
 ```xml
 <PropertyGroup>
-    <Version>1.1.0.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.0.3.0</Version>              <!-- Change this -->
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <FileVersion>1.0.3.0</FileVersion>
 </PropertyGroup>
 ```
 
-### Step 2.3: Update MainApp Version Too
+### Step 2.2: Make Your Changes
 
-**Important:** When updating the launcher, also update MainApp version (even if no changes):
+Edit Launcher code in `Launcher/MainWindow.xaml.cs` or `MainWindow.xaml`.
+
+### Step 2.3: Build Launcher
+
+```bash
+cd Launcher
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/launcher-v1.0.3
+```
+
+### Step 2.4: Create Launcher ZIP
+
+**Important:** Launcher ZIP contains ONLY Launcher.exe and its dependencies (no MainApp).
+
+```powershell
+# PowerShell
+Compress-Archive -Path 'releases\launcher-v1.0.3\*' -DestinationPath 'releases\Launcher-v1.0.3.zip' -Force
+```
+
+### Step 2.5: Calculate Checksum
+
+```powershell
+Get-FileHash 'releases\Launcher-v1.0.3.zip' -Algorithm SHA256
+```
+
+Copy the hash (e.g., `ABC123...`)
+
+### Step 2.6: Update launcher-update.xml
+
+Edit `launcher-update.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+    <version>1.0.3.0</version>
+    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/launcher-v1.0.3/Launcher-v1.0.3.zip</url>
+    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/launcher-v1.0.3</changelog>
+    <mandatory>false</mandatory>
+    <checksum algorithm="SHA256">PASTE_HASH_HERE</checksum>
+</item>
+```
+
+### Step 2.7: Create GitHub Release
+
+```bash
+gh release create launcher-v1.0.3 \
+  "releases/Launcher-v1.0.3.zip" \
+  --title "Launcher v1.0.3" \
+  --notes "## Launcher Update v1.0.3
+
+- Fixed bug in update checker
+- Improved error handling
+
+**Note:** This updates only the Launcher. MainApp is not affected."
+```
+
+### Step 2.8: Commit and Push
+
+**Do NOT commit yet** - wait for user instruction.
+
+When ready:
+```bash
+git add launcher-update.xml Launcher/
+git commit -m "Release Launcher v1.0.3 - Bug fixes"
+git push
+```
+
+✅ **Done!** Users will get Launcher update notification. After update, Launcher restarts and launches their existing MainApp.
+
+---
+
+## 3. Release New Version of MainApp Only
+
+**When:** You added features or fixed bugs in MainApp. Launcher stays the same.
+
+### Step 3.1: Update MainApp Version
 
 Edit `MainApp/MainApp.csproj`:
 
 ```xml
 <PropertyGroup>
-    <Version>1.1.0.0</Version>  <!-- Match launcher version -->
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.0.3.0</Version>              <!-- Change this -->
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <FileVersion>1.0.3.0</FileVersion>
 </PropertyGroup>
 ```
 
-### Step 2.4: Build Both Projects
+### Step 3.2: Update MainApp UI (Optional)
 
-```bash
-# Build Launcher (with changes)
-cd Launcher
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v1.1.0
+Edit `MainApp/MainWindow.xaml`:
 
-# Build MainApp
-cd ../MainApp
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v1.1.0/MainApp
+```xml
+Title="Main Application - v1.0.3"  <!-- Update title -->
 
-# Copy config
-cp ../config.ini ../releases/v1.1.0/
+<TextBlock Text="Version 1.0.3"    <!-- Update version display -->
 ```
 
-### Step 2.5: Create Package and Follow Steps 1.6 - 1.10
+### Step 3.3: Make Your Code Changes
 
-Same as MainApp release (create ZIP, checksum, update XML, create GitHub release, push).
+Edit `MainApp/MainWindow.xaml.cs` or other files as needed.
 
-⚠️ **Note:** When launcher updates itself, it will download the new ZIP, extract it, and restart.
+### Step 3.4: Build MainApp
+
+```bash
+cd MainApp
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/app-v1.0.3/MainApp
+```
+
+### Step 3.5: Create MainApp ZIP
+
+**Important:** ZIP contains ONLY the MainApp folder (not Launcher).
+
+```powershell
+# Create the folder structure first
+New-Item -ItemType Directory -Path "releases\app-v1.0.3-package" -Force
+Copy-Item -Recurse "releases\app-v1.0.3\MainApp" "releases\app-v1.0.3-package\"
+
+# Create ZIP
+Compress-Archive -Path 'releases\app-v1.0.3-package\*' -DestinationPath 'releases\MainApp-v1.0.3.zip' -Force
+```
+
+**ZIP Structure:**
+```
+MainApp-v1.0.3.zip
+└── MainApp/
+    ├── MainApp.exe
+    └── (dependencies)
+```
+
+### Step 3.6: Calculate Checksum
+
+```powershell
+Get-FileHash 'releases\MainApp-v1.0.3.zip' -Algorithm SHA256
+```
+
+Copy the hash.
+
+### Step 3.7: Update app-update.xml
+
+Edit `app-update.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+    <version>1.0.3.0</version>
+    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/app-v1.0.3/MainApp-v1.0.3.zip</url>
+    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/app-v1.0.3</changelog>
+    <mandatory>false</mandatory>
+    <checksum algorithm="SHA256">PASTE_HASH_HERE</checksum>
+</item>
+```
+
+### Step 3.8: Create GitHub Release
+
+```bash
+gh release create app-v1.0.3 \
+  "releases/MainApp-v1.0.3.zip" \
+  --title "MainApp v1.0.3" \
+  --notes "## MainApp Update v1.0.3
+
+### New Features
+- Added dark mode
+- Improved performance
+
+### Bug Fixes
+- Fixed crash on startup
+
+**Note:** This updates only the MainApp. Launcher is not affected."
+```
+
+### Step 3.9: Commit and Push
+
+**Do NOT commit yet** - wait for user instruction.
+
+When ready:
+```bash
+git add app-update.xml MainApp/
+git commit -m "Release MainApp v1.0.3 - New features"
+git push
+```
+
+✅ **Done!** Users will get MainApp update notification. Launcher stays the same.
 
 ---
 
-## 3. Release Both Together
+## 4. Release Both Together
 
-When you update both Launcher and MainApp at the same time.
+**When:** Both Launcher and MainApp need updates.
 
-### Step 3.1: Update Both Version Numbers
+### Step 4.1: Update Both Versions
 
 **Launcher/Launcher.csproj:**
 ```xml
-<Version>1.2.0.0</Version>
-<AssemblyVersion>1.2.0.0</AssemblyVersion>
-<FileVersion>1.2.0.0</FileVersion>
+<Version>1.0.3.0</Version>
 ```
 
 **MainApp/MainApp.csproj:**
 ```xml
-<Version>1.2.0.0</Version>
-<AssemblyVersion>1.2.0.0</AssemblyVersion>
-<FileVersion>1.2.0.0</FileVersion>
+<Version>1.0.3.0</Version>
 ```
 
-### Step 3.2: Make Your Code Changes
+### Step 4.2: Make Changes to Both Projects
 
-Edit both projects as needed.
+Edit both Launcher and MainApp code as needed.
 
-### Step 3.3: Follow Steps 1.4 - 1.10
-
-Build, package, checksum, update XML, create release, push.
-
----
-
-## 4. Quick Reference Commands
-
-### Complete Release Script (Copy & Paste)
-
-Replace `VERSION` with your new version (e.g., `1.0.3`):
+### Step 4.3: Build Both
 
 ```bash
-# Set version variable
-VERSION="1.0.3"
-
-# 1. Build Launcher
+# Build Launcher
 cd Launcher
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v${VERSION}
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/launcher-v1.0.3
 
-# 2. Build MainApp
+# Build MainApp
 cd ../MainApp
-dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/v${VERSION}/MainApp
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/app-v1.0.3/MainApp
+```
 
-# 3. Copy config
+### Step 4.4: Create TWO Separate ZIPs
+
+```powershell
+# Launcher ZIP
+Compress-Archive -Path 'releases\launcher-v1.0.3\*' -DestinationPath 'releases\Launcher-v1.0.3.zip' -Force
+
+# MainApp ZIP
+New-Item -ItemType Directory -Path "releases\app-v1.0.3-package" -Force
+Copy-Item -Recurse "releases\app-v1.0.3\MainApp" "releases\app-v1.0.3-package\"
+Compress-Archive -Path 'releases\app-v1.0.3-package\*' -DestinationPath 'releases\MainApp-v1.0.3.zip' -Force
+```
+
+### Step 4.5: Calculate Both Checksums
+
+```powershell
+Get-FileHash 'releases\Launcher-v1.0.3.zip' -Algorithm SHA256
+Get-FileHash 'releases\MainApp-v1.0.3.zip' -Algorithm SHA256
+```
+
+### Step 4.6: Update BOTH XML Files
+
+**launcher-update.xml:**
+```xml
+<version>1.0.3.0</version>
+<url>.../launcher-v1.0.3/Launcher-v1.0.3.zip</url>
+<checksum>LAUNCHER_HASH</checksum>
+```
+
+**app-update.xml:**
+```xml
+<version>1.0.3.0</version>
+<url>.../app-v1.0.3/MainApp-v1.0.3.zip</url>
+<checksum>MAINAPP_HASH</checksum>
+```
+
+### Step 4.7: Create TWO GitHub Releases
+
+```bash
+# Launcher release
+gh release create launcher-v1.0.3 \
+  "releases/Launcher-v1.0.3.zip" \
+  --title "Launcher v1.0.3" \
+  --notes "Launcher update v1.0.3"
+
+# MainApp release
+gh release create app-v1.0.3 \
+  "releases/MainApp-v1.0.3.zip" \
+  --title "MainApp v1.0.3" \
+  --notes "MainApp update v1.0.3"
+```
+
+### Step 4.8: Commit and Push
+
+**Do NOT commit yet** - wait for user instruction.
+
+When ready:
+```bash
+git add launcher-update.xml app-update.xml Launcher/ MainApp/
+git commit -m "Release v1.0.3 - Both Launcher and MainApp updated"
+git push
+```
+
+✅ **Done!** Users will get both updates. Launcher updates first, restarts, then MainApp updates.
+
+---
+
+## 5. Use Launcher with Your Own App
+
+**Scenario:** You want to use the Auto_Updater Launcher with your own application.
+
+### Step 5.1: Copy Launcher Files
+
+From `releases/launcher-vX.X.X/`, copy:
+- `Launcher.exe`
+- All `.dll` files
+
+To your project folder:
+```
+YourProject/
+├── Launcher.exe
+├── Autoupdater.NET.Official.dll
+├── ini-parser.dll
+└── (other DLLs)
+```
+
+### Step 5.2: Create Your App Folder
+
+```
+YourProject/
+├── Launcher.exe
+├── *.dll
+└── YourApp/              ← Create this
+    └── YourApp.exe       ← Your application
+```
+
+### Step 5.3: Create config.ini
+
+Create `config.ini` next to Launcher.exe:
+
+```ini
+[Updater]
+LauncherUpdateUrl=https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/launcher-update.xml
+AppUpdateUrl=https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/master/your-app-update.xml
+MainAppPath=YourApp\YourApp.exe
+AutoCheckLauncherUpdate=true
+AutoCheckAppUpdate=true
+ShowUpdateUI=true
+MandatoryLauncherUpdate=false
+MandatoryAppUpdate=false
+
+[Application]
+AppName=Your Application Name
+AppVersion=1.0.0
+LauncherVersion=1.0.2
+```
+
+**Change:**
+- `YOUR_USERNAME/YOUR_REPO` → Your GitHub repo
+- `YourApp\YourApp.exe` → Path to your app
+- `Your Application Name` → Your app's name
+
+### Step 5.4: Create your-app-update.xml in Your Repo
+
+In your GitHub repository, create `your-app-update.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+    <version>1.0.0.0</version>
+    <url>https://github.com/YOUR_USERNAME/YOUR_REPO/releases/download/v1.0.0/YourApp-v1.0.0.zip</url>
+    <changelog>https://github.com/YOUR_USERNAME/YOUR_REPO/releases/tag/v1.0.0</changelog>
+    <mandatory>false</mandatory>
+    <checksum algorithm="SHA256">YOUR_CHECKSUM</checksum>
+</item>
+```
+
+### Step 5.5: Create Your App Release
+
+```bash
+# Package your app
+Compress-Archive -Path 'YourApp\*' -DestinationPath 'YourApp-v1.0.0.zip'
+
+# Get checksum
+Get-FileHash 'YourApp-v1.0.0.zip' -Algorithm SHA256
+
+# Update your-app-update.xml with checksum
+
+# Create GitHub release
+gh release create v1.0.0 YourApp-v1.0.0.zip --title "v1.0.0" --notes "Initial release"
+```
+
+### Step 5.6: Test
+
+1. Run `Launcher.exe`
+2. It checks for updates
+3. Launches `YourApp/YourApp.exe`
+
+✅ **Your app now has auto-update!**
+
+### Step 5.7: Release New Version of Your App
+
+```bash
+# 1. Update YourApp version in your project
+# 2. Build your app
+# 3. Create new ZIP
+Compress-Archive -Path 'YourApp\*' -DestinationPath 'YourApp-v1.0.1.zip'
+
+# 4. Get checksum
+Get-FileHash 'YourApp-v1.0.1.zip' -Algorithm SHA256
+
+# 5. Update your-app-update.xml
+# <version>1.0.1.0</version>
+# <url>.../v1.0.1/YourApp-v1.0.1.zip</url>
+# <checksum>NEW_HASH</checksum>
+
+# 6. Create release
+gh release create v1.0.1 YourApp-v1.0.1.zip
+
+# 7. Push your-app-update.xml
+git add your-app-update.xml
+git commit -m "Update to v1.0.1"
+git push
+```
+
+✅ **Users automatically get the update!**
+
+---
+
+## 6. Quick Reference Commands
+
+### Update Launcher
+
+```bash
+# Set version
+VERSION="1.0.3"
+
+# Build
+cd Launcher
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/launcher-v${VERSION}
+
+# Package
 cd ..
-cp config.ini releases/v${VERSION}/
+powershell -Command "Compress-Archive -Path 'releases\launcher-v${VERSION}\*' -DestinationPath 'releases\Launcher-v${VERSION}.zip' -Force"
 
-# 4. Create ZIP (PowerShell)
-powershell -Command "Compress-Archive -Path 'releases\v${VERSION}\*' -DestinationPath 'releases\Auto_Updater-v${VERSION}.zip' -Force"
+# Checksum
+powershell -Command "(Get-FileHash 'releases\Launcher-v${VERSION}.zip' -Algorithm SHA256).Hash"
 
-# 5. Get checksum (PowerShell)
-powershell -Command "(Get-FileHash 'releases\Auto_Updater-v${VERSION}.zip' -Algorithm SHA256).Hash"
+# Update launcher-update.xml with version, URL, and checksum
 
-# 6. Edit update.xml manually with new version and checksum
-
-# 7. Commit and push
-git add -A
-git commit -m "Release v${VERSION}"
-git push
-
-# 8. Create GitHub release
-gh release create v${VERSION} \
-  "releases/Auto_Updater-v${VERSION}.zip" \
-  --title "v${VERSION}" \
-  --notes "Release v${VERSION}"
-
-# 9. Push update.xml
-git add update.xml
-git commit -m "Update manifest to v${VERSION}"
-git push
+# Release
+gh release create launcher-v${VERSION} "releases/Launcher-v${VERSION}.zip" --title "Launcher v${VERSION}"
 ```
 
----
-
-## 5. Testing Updates
-
-### Test Locally Before Release
-
-1. **Build new version** but don't create GitHub release yet
-2. **Copy `releases/vX.X.X/` folder** to a test location
-3. **Run Launcher.exe** from test location
-4. **Verify MainApp launches correctly**
-5. **Test all features**
-
-### Test Update Process
-
-1. **Keep old version** in one folder (e.g., v1.0.2)
-2. **Create GitHub release** with new version (e.g., v1.0.3)
-3. **Update update.xml** and push
-4. **Run old version's Launcher.exe**
-5. **Verify update notification appears**
-6. **Click Update** and verify download/install works
-7. **Verify new version runs correctly**
-
----
-
-## 6. Versioning Strategy
-
-### Semantic Versioning (Recommended)
-
-Format: `MAJOR.MINOR.PATCH.BUILD`
-
-**Examples:**
-- `1.0.0.0` - Initial release
-- `1.0.1.0` - Bug fix (patch)
-- `1.1.0.0` - New features (minor)
-- `2.0.0.0` - Breaking changes (major)
-
-### When to Increment
-
-- **MAJOR (1.x.x → 2.x.x)**: Breaking changes, major refactor
-- **MINOR (1.0.x → 1.1.x)**: New features, non-breaking changes
-- **PATCH (1.0.0 → 1.0.1)**: Bug fixes only
-- **BUILD (1.0.0.0 → 1.0.0.1)**: Internal builds (optional)
-
----
-
-## 7. Common Scenarios
-
-### Scenario A: Fix a Bug in MainApp
+### Update MainApp
 
 ```bash
+# Set version
 VERSION="1.0.3"
-# 1. Fix bug in MainApp code
-# 2. Update MainApp version to 1.0.3
-# 3. Build and release (steps 1.4-1.10)
+
+# Build
+cd MainApp
+dotnet publish -c Release -r win-x64 --no-self-contained -o ../releases/app-v${VERSION}/MainApp
+
+# Package
+cd ..
+powershell -Command "New-Item -ItemType Directory -Path 'releases\app-v${VERSION}-package' -Force"
+powershell -Command "Copy-Item -Recurse 'releases\app-v${VERSION}\MainApp' 'releases\app-v${VERSION}-package\'"
+powershell -Command "Compress-Archive -Path 'releases\app-v${VERSION}-package\*' -DestinationPath 'releases\MainApp-v${VERSION}.zip' -Force"
+
+# Checksum
+powershell -Command "(Get-FileHash 'releases\MainApp-v${VERSION}.zip' -Algorithm SHA256).Hash"
+
+# Update app-update.xml with version, URL, and checksum
+
+# Release
+gh release create app-v${VERSION} "releases/MainApp-v${VERSION}.zip" --title "MainApp v${VERSION}"
 ```
 
-### Scenario B: Add New Feature to MainApp
+---
 
-```bash
-VERSION="1.1.0"
-# 1. Add feature in MainApp code
-# 2. Update MainApp version to 1.1.0
-# 3. Build and release (steps 1.4-1.10)
-```
+## 7. Testing Updates
 
-### Scenario C: Fix Launcher Bug
+### Test Launcher Update Locally
 
-```bash
-VERSION="1.0.3"
-# 1. Fix bug in Launcher code
-# 2. Update both Launcher and MainApp to 1.0.3
-# 3. Build and release (steps 2.4-2.5)
-```
+1. Build Launcher v1.0.2
+2. Build Launcher v1.0.3
+3. Run v1.0.2
+4. Point to test server with v1.0.3 update.xml
+5. Verify update works
 
-### Scenario D: Major Update
+### Test MainApp Update Locally
 
-```bash
-VERSION="2.0.0"
-# 1. Make breaking changes to both
-# 2. Update both to 2.0.0
-# 3. Build and release (steps 3.1-3.3)
-# 4. Consider setting mandatory=true in update.xml
-```
+1. Build MainApp v1.0.2
+2. Build MainApp v1.0.3
+3. Package v1.0.3
+4. Create local test server with update.xml
+5. Run Launcher → Verify MainApp updates
+
+### Test Complete Installation
+
+1. Create complete package (Launcher + MainApp + config.ini)
+2. Extract to test folder
+3. Run Launcher.exe
+4. Verify it launches MainApp
+5. Trigger updates
+6. Verify both update independently
 
 ---
 
 ## 8. Troubleshooting
 
-### Issue: Users Not Seeing Update
+### Launcher Not Updating
 
 **Check:**
-1. Is `update.xml` pushed to GitHub? Check: https://raw.githubusercontent.com/lwsvincent/Auto_Updater/master/update.xml
-2. Is version in `update.xml` higher than user's current version?
-3. Is GitHub release created with correct tag?
-4. Is ZIP file uploaded to the release?
+- Is `launcher-update.xml` pushed to GitHub?
+- Is version number higher than current?
+- Is GitHub release created with correct tag?
+- Is ZIP file uploaded?
+- Is checksum correct?
 
-### Issue: Update Download Fails
-
-**Check:**
-1. Is the ZIP file URL correct in `update.xml`?
-2. Is the GitHub release public?
-3. Is the checksum correct?
-
-### Issue: Update Installs but Doesn't Work
+### MainApp Not Updating
 
 **Check:**
-1. Did you include all DLLs in the ZIP?
-2. Is `config.ini` in the ZIP?
-3. Is folder structure correct? (Launcher.exe in root, MainApp.exe in MainApp/)
-4. Did you test the ZIP manually before releasing?
+- Is `app-update.xml` pushed to GitHub?
+- Is version number higher than current?
+- Is `AppUpdateUrl` correct in config.ini?
+- Is MainApp ZIP structured correctly? (Should contain `MainApp/` folder)
+
+### Both Updates Triggered Unexpectedly
+
+**Check:**
+- Versions in XML files
+- Versions in `.csproj` files
+- Make sure versions match what you intended
 
 ---
 
-## 9. Rollback
-
-### If You Need to Rollback
-
-1. **Edit `update.xml`** to point to previous version:
-
-```xml
-<item>
-    <version>1.0.2.0</version>  <!-- Back to old version -->
-    <url>https://github.com/lwsvincent/Auto_Updater/releases/download/v1.0.2/Auto_Updater-v1.0.2-fixed.zip</url>
-    <changelog>https://github.com/lwsvincent/Auto_Updater/releases/tag/v1.0.2</changelog>
-    <mandatory>false</mandatory>
-    <checksum algorithm="SHA256">DF9F03C8D869C1747BD5CA80E73491C8483C8F2699F2C638874CA20F2E29E76C</checksum>
-</item>
-```
-
-2. **Commit and push**:
-
-```bash
-git add update.xml
-git commit -m "Rollback to v1.0.2 due to critical bug"
-git push
-```
-
-3. Users will be offered to "update" back to the old version
-
----
-
-## 10. Best Practices
+## 9. Best Practices
 
 ### ✅ DO:
-- Always test locally before releasing
-- Always calculate and verify checksum
-- Keep old releases available on GitHub
-- Use semantic versioning
+
+- Keep Launcher and MainApp versions independent
+- Update only what changed (Launcher OR MainApp, not always both)
+- Test updates locally before releasing
+- Use semantic versioning (Major.Minor.Patch)
 - Write clear release notes
-- Test the update process from previous version
-- Backup before major updates
+- Keep old releases available for rollback
 
 ### ❌ DON'T:
-- Don't delete old GitHub releases (users might need to rollback)
-- Don't forget to update `update.xml` after creating release
+
+- Don't update both if only one changed
+- Don't forget to update XML files after creating releases
 - Don't skip checksum validation
-- Don't release without testing
-- Don't change version format (stay consistent)
+- Don't delete old GitHub releases
+- Don't use same release tag for both (use `launcher-vX.X.X` and `app-vX.X.X`)
 
 ---
 
-## 11. Automation (Advanced)
+## 10. Summary Checklist
 
-### PowerShell Release Script
-
-Save as `release.ps1`:
-
-```powershell
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$Version
-)
-
-Write-Host "Building version $Version..." -ForegroundColor Green
-
-# Build projects
-Set-Location Launcher
-dotnet publish -c Release -r win-x64 --no-self-contained -o "../releases/v$Version"
-
-Set-Location ../MainApp
-dotnet publish -c Release -r win-x64 --no-self-contained -o "../releases/v$Version/MainApp"
-
-Set-Location ..
-Copy-Item config.ini "releases/v$Version/"
-
-# Create ZIP
-Compress-Archive -Path "releases\v$Version\*" -DestinationPath "releases\Auto_Updater-v$Version.zip" -Force
-
-# Get checksum
-$hash = (Get-FileHash "releases\Auto_Updater-v$Version.zip" -Algorithm SHA256).Hash
-Write-Host "SHA256: $hash" -ForegroundColor Yellow
-Write-Host "Please update update.xml with this checksum!" -ForegroundColor Yellow
-
-# Commit
-git add -A
-git commit -m "Release v$Version"
-git push
-
-# Create release
-gh release create "v$Version" "releases/Auto_Updater-v$Version.zip" --title "v$Version" --notes "Release v$Version"
-
-Write-Host "Done! Don't forget to update update.xml and push!" -ForegroundColor Green
-```
-
-**Usage:**
-```powershell
-.\release.ps1 -Version "1.0.3"
-```
-
----
-
-## 📝 Summary Checklist
-
-### For Every Release:
-
-- [ ] Update version numbers in `.csproj` files
+### For Launcher Update:
+- [ ] Update version in `Launcher/Launcher.csproj`
 - [ ] Make code changes
-- [ ] Build both Launcher and MainApp
-- [ ] Copy `config.ini` to release folder
-- [ ] Create ZIP package
-- [ ] Calculate SHA256 checksum
-- [ ] Update `update.xml` with new version, URL, and checksum
-- [ ] Commit code changes
-- [ ] Create GitHub release with ZIP file
-- [ ] Push `update.xml` changes to trigger update
-- [ ] Test update process from previous version
+- [ ] Build Launcher
+- [ ] Create `Launcher-vX.X.X.zip`
+- [ ] Calculate SHA256
+- [ ] Update `launcher-update.xml`
+- [ ] Create GitHub release `launcher-vX.X.X`
+- [ ] Commit and push (when user approves)
+
+### For MainApp Update:
+- [ ] Update version in `MainApp/MainApp.csproj`
+- [ ] Make code changes
+- [ ] Build MainApp
+- [ ] Create `MainApp-vX.X.X.zip` (with MainApp/ folder)
+- [ ] Calculate SHA256
+- [ ] Update `app-update.xml`
+- [ ] Create GitHub release `app-vX.X.X`
+- [ ] Commit and push (when user approves)
+
+### For Using with Your Own App:
+- [ ] Copy Launcher.exe + DLLs
+- [ ] Create your app folder
+- [ ] Create config.ini pointing to your app
+- [ ] Create your-app-update.xml in your repo
+- [ ] Create GitHub release with your app ZIP
+- [ ] Test: Run Launcher → Launches your app
+- [ ] Test: Create v1.0.1 → Users get update
 
 ---
 
 **Need Help?**
-- Check the [README.md](README.md) for architecture details
-- View [SUMMARY.md](SUMMARY.md) for project overview
-- See example releases: https://github.com/lwsvincent/Auto_Updater/releases
+- See [ARCHITECTURE.md](ARCHITECTURE.md) for system design
+- See [REUSE_LAUNCHER_GUIDE.md](REUSE_LAUNCHER_GUIDE.md) for detailed reuse guide
+- See [README.md](README.md) for project overview
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
